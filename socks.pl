@@ -10,7 +10,7 @@ use bytes;
 
 my ($bind, $port, $user, $password, $conback, $conport, undef) = @ARGV;
 
-die "Usage:\n\tsocks.pl bindaddr port user password (conback) (conport)\n\tbindaddr = bind adress\n\tport = bind port\n\tuser = password auth user\n\tpassword = password auth password\n\toptional: conback = connect back ip\n\toptional: conport = connect back port\n" if not ($bind and $port and $user and $password) or ($conback and not $conport); #todo check for validity
+die "Usage:\n\tsocks.pl bindaddr port user password (conback) (conport)\n\tbindaddr = bind adress\n\tport = bind port\n\tuser = password auth user\n\tpassword = password auth password\n\toptional: conback = connect back ip\n\toptional: conport = connect back port\n" if not ($bind and $port and $user and $password) or ($conback and not $conport); #todo: check for validity
 
 sub fh_stdio()
 {
@@ -71,7 +71,9 @@ sub getip()
 
 sub getstring()
 {
-	my ($inhandle, $length) = @_;
+	my ($inhandle) = @_;
+	my $length = &getbytes($inhandle, 1);
+	print "strlen: " . $length . "\n";
 	my $buf = &readbytes($inhandle, $length);
 	return unpack("a" . $length, $buf);
 }
@@ -143,11 +145,13 @@ sub req()
 		$port = &getuint16($inhandle);
 		print "ip: " . $address . " port: " . $port . "\n";
 	}
-	elsif($addresstype == 2)
-	{
-		#domain
-	}
 	elsif($addresstype == 3)
+	{
+		$address = &getstring($inhandle);
+		$port = &getuint16($inhandle);
+		print "dns: " . $address . " port: " . $port . "\n";
+	}
+	elsif($addresstype == 4)
 	{
 		#ipv6
 	}
