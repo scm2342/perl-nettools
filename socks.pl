@@ -39,6 +39,69 @@ sub fh_listen()
 	return $newsocket, $newsocket;
 }
 
+sub readbytes()
+{
+	my ($inhandle, $numbytes) = @_;
+	my $buf;
+	sysread($inhandle, $buf, $numbytes) == $numbytes or die "could not read enough bytes to fullfill requirement of " . $numbytes . "\n";
+	return $buf;
+}
+
+sub getbytes()
+{
+	my ($inhandle, $numbytes) = @_;
+	my $buf = &readbytes($inhandle, $numbytes);
+	return unpack("C" . $numbytes, $buf);
+}
+
+sub getuint16()
+{
+	my ($inhandle) = @_;
+	my $buf = &readbytes($inhandle, 2);
+	return unpack("n", $buf);
+}
+
+sub getip()
+{
+	my ($inhandle) = @_;
+	my $buf = &readbytes($inhandle, 4);
+	my @ip = unpack("C4", $buf);
+	return join(".", @ip);
+}
+
+sub getstring()
+{
+	my ($inhandle, $length) = @_;
+	my $buf = &readbytes($inhandle, $length);
+	return unpack("a" . $length, $buf);
+}
+
+sub sendbytes()
+{
+	my ($outhandle, $bytes) = @_;
+	syswrite($outhandle, $bytes) == length($bytes) or die "could not send enough bytes to fullfull requirement of " . length($bytes) . "\n";
+}
+
+sub setbytes()
+{
+	my ($outhandle, @bytes) = @_;
+	my $bytes = pack("C" . ($#bytes + 1), @bytes);
+	&sendbytes($outhandle, $bytes);
+}
+
+sub setuint16()
+{
+	my ($outhandle, @ints) = @_;
+	my $bytes = pack("n" . ($#ints + 1), @ints);
+	&sendbytes($outhandle, $bytes);
+}
+
+sub setip()
+{
+	my ($outhandle, $ip) = @_;
+	my $bytes = pack("C4", split('.', $ip));
+	&sendbytes($outhandle, $bytes);
+}
 
 sub relay()
 {
@@ -68,27 +131,16 @@ sub io()
 	return 1;
 }
 
-sub nego_pass()
-{
-	my ($inhandle, $outhandle) = @_;
-	syswrite($outhandle, (pack("C", 2))[0]) or die "fuck";
-	return 0;
-}
-
 sub req()
 {
 	my ($inhandle, $outhandle) = @_;
-	my $buf;
-	sysread($inhandle, $buf, 4) or die "fuck";
-	my ($version, $command, $reserved, $addresstype) = unpack("C4", $buf);
+	my ($version, $command, $reserved, $addresstype) =  &getbytes($inhandle, 4);
 	print "ver: " . $version . " cmd: " . $command . " res: " . $reserved . " atyp: " . $addresstype . "\n";
 	my ($address, $port);
 	if($addresstype == 1)
 	{
-		sysread($inhandle, $buf, 4) or die "fuck";
-		$address = join('.', unpack("C4", $buf));
-		sysread($inhandle, $buf, 2) or die "fuck";
-		$port = unpack("n", $buf);
+		$address = &getip($inhandle);
+		$port = &getuint16($inhandle);
 		print "ip: " . $address . " port: " . $port . "\n";
 	}
 	elsif($addresstype == 2)
@@ -107,7 +159,6 @@ sub req()
 	&connect()
 }
 
-#first select
 sub negotiate()
 {
 	my ($inhandle, $outhandle) = @_;
@@ -135,6 +186,13 @@ sub negotiate()
 	return 0;
 }
 
+sub nego_pass()
+{
+	my ($inhandle, $outhandle) = @_;
+	syswrite($outhandle, (pack("C", 2))[0]) or die "fuck";
+	return 0;
+}
+
 my ($ihandle, $ohandle) = &fh_listen("127.0.0.1", 1080);
 if(&negotiate($ihandle, $ohandle))
 {
@@ -142,7 +200,7 @@ if(&negotiate($ihandle, $ohandle))
 	if($command == 1)
 	{
 		my ($inhandle2, $outhandle2) = &fh_conn($address, $port);
-		syswrite($ohandle, pack("C10", (5,0,0,1,0,0,0,0,0,0))) or die "fuck";
+		&setbytes($ohandle, (5,0,0,1,0,0,0,0,0,0));
 		&relay($ihandle, $ohandle, $inhandle2, $outhandle2);
 	}
 }
