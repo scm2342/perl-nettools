@@ -165,17 +165,13 @@ sub req()
 sub negotiate()
 {
 	my ($inhandle, $outhandle) = @_;
-	my $buf;
-	my @methods;
 
-	sysread($inhandle, $buf, 2) or die "fuck";
-	my ($version, $nmethods) = unpack("C2", $buf);
-	sysread($inhandle, $buf, $nmethods) or die "fuck";
-	@methods = unpack("C" . $nmethods, $buf);
+	my ($version, $nmethods) = &getbytes($inhandle, 2);
+	my @methods = &getbytes($inhandle, $nmethods);
 	
 	if(grep {$_ == 0} @methods)
 	{
-		syswrite($outhandle, pack("C2", (5,0))) or die "fuck";
+		&setbytes($outhandle, (5,0));
 		return 1;
 	}
 	elsif(grep {$_ == 2} @methods)
@@ -184,7 +180,7 @@ sub negotiate()
 	}
 	else
 	{
-		syswrite($outhandle, pack("C", 255)) or die "fuck";
+		&setbytes($outhandle, (255));
 	}
 	return 0;
 }
@@ -192,7 +188,7 @@ sub negotiate()
 sub nego_pass()
 {
 	my ($inhandle, $outhandle) = @_;
-	syswrite($outhandle, (pack("C", 2))[0]) or die "fuck";
+	&setbytes($outhandle, (2));
 	return 0;
 }
 
