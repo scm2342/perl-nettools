@@ -35,8 +35,7 @@ sub fh_listen()
 						Proto => 'tcp',
 						Reuse => 1)
 							or die "Could not open socket on ".$bindip." on port ".$bindport."\n";
-	my $newsocket = $socket->accept();
-	return $newsocket, $newsocket;
+	return $socket;
 }
 
 sub readbytes()
@@ -72,7 +71,7 @@ sub getip()
 sub getstring()
 {
 	my ($inhandle) = @_;
-	my $length = &getbytes($inhandle, 1);
+	my ($length) = &getbytes($inhandle, 1);
 	print "strlen: " . $length . "\n";
 	my $buf = &readbytes($inhandle, $length);
 	return unpack("a" . $length, $buf);
@@ -197,14 +196,33 @@ sub nego_pass()
 	return 0;
 }
 
-my ($ihandle, $ohandle) = &fh_listen("127.0.0.1", 1080);
-if(&negotiate($ihandle, $ohandle))
+sub handle_conn()
 {
-	my ($command, $address, $port) = &req($ihandle, $ohandle);
-	if($command == 1)
+	my ($socket) = @_;
+	if(&negotiate($socket, $socket))
 	{
-		my ($inhandle2, $outhandle2) = &fh_conn($address, $port);
-		&setbytes($ohandle, (5,0,0,1,0,0,0,0,0,0));
-		&relay($ihandle, $ohandle, $inhandle2, $outhandle2);
+		my ($command, $address, $port) = &req($socket, $socket);
+		if($command == 1)
+		{
+			my ($inhandle2, $outhandle2) = &fh_conn($address, $port);
+			&setbytes($socket, (5,0,0,1,0,0,0,0,0,0));
+			&relay($socket, $socket, $inhandle2, $outhandle2);
+			$inhandle2->close();
+		}
 	}
+	$socket->close();
 }
+
+my $listensocket = &fh_listen($bind, $port);
+my $newsock;
+while(1)
+{
+	$newsock = $listensocket->accept();
+	print "Accepting con\n";
+	my $child = fork();
+	last if($child);
+}
+
+print "hello im a child\n";
+&handle_conn($newsock);
+print "hello im a child and my life is over...\n";
