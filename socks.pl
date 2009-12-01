@@ -216,7 +216,7 @@ while(1)
 	$newsock = $listensocket->accept();
 	print "Accepting con\n";
 	my $child = fork();
-	last if($child);
+	last if(not $child);
 }
 
 print "hello im a child\n";
