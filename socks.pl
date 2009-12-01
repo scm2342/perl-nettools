@@ -201,7 +201,7 @@ sub handle_conn()
 		if($command == 1)
 		{
 			my ($inhandle2, $outhandle2) = &fh_conn($address, $port);
-			&setbytes($socket, (5,0,0,1,0,0,0,0,0,0));
+			&setbytes($socket, (5,0,0,1, unpack("C4", $socket->sockaddr()), unpack("C2", $socket->peeraddr())));
 			&relay($socket, $socket, $inhandle2, $outhandle2);
 			$inhandle2->close();
 		}
